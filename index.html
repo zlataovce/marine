@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+      html, body {
+        margin: 0;
+        height: 100%;
+      }
+      #overlay {
+        display: flex;
+        justify-content: center;
+        height: 100%;
+      }
+      #start-button {
+        position: relative;
+        top: 50%;
+      }
+    </style>
+  </head>
+  
+  <!-- based on the Three.js MMD example -->
+  <!-- Music, model, motion: iMarine-Project -->
+  <!-- Stage: https://www.deviantart.com/unluckycandyfox/art/MMD-DL-Pier-with-lighthouse-stage-786266362 -->
+  <!-- Camera: https://www.youtube.com/watch?v=BngRIqlhyWk -->
+  
+  <body>
+    <div id="overlay">
+      <div><button id="start-button">Play</button></div>
+    </div>
+    
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.min.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/"
+        }
+      }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/libs/ammo.wasm.js"></script>
+    
+    <script type="module">
+      import * as THREE from "three";
+      import Stats from "three/addons/libs/stats.module.js";
+      
+      import { MMDLoader } from "three/addons/loaders/MMDLoader.js";
+      import { MMDAnimationHelper } from "three/addons/animation/MMDAnimationHelper.js";
+      
+      const clock = new THREE.Clock();
+      let mesh, camera, scene, renderer, helper, stats;
+      let ready = false;
+
+      const init = () => {
+        const overlay = document.getElementById("overlay");
+        overlay.remove();
+        const container = document.createElement("div");
+        document.body.appendChild(container);
+        
+        stats = new Stats();
+        container.appendChild(stats.dom);
+        
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 2000);
+
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x3b46ae);
+        
+        const listener = new THREE.AudioListener();
+        camera.add(listener);
+        scene.add(camera);
+        
+        const ambient = new THREE.AmbientLight(0xaaaaaa, 1);
+        scene.add(ambient);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 3);
+        directionalLight.position.set(-1, 1, 1).normalize();
+        scene.add(directionalLight);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        container.appendChild(renderer.domElement);
+        
+        helper = new MMDAnimationHelper({ pmxAnimation: true });
+        helper.enable("ik", false);
+        
+        const onProgress = (xhr) => {
+          if (xhr.lengthComputable) {
+            console.log(`${Math.round((xhr.loaded / xhr.total) * 100, 2)}% downloaded`);
+          }
+        };
+        
+        const loader = new MMDLoader();
+        loader.load("stage/Pier_with_lighthouse.pmx", (stage) => {
+          loader.loadWithAnimation("model/iMarine_DeepBlueTown_he_Oideyo.pmx", ["DeepBlueTown_he_Oideyo_dance.vmd"], (model) => {
+            mesh = model.mesh;
+            mesh.frustumCulled = false;
+            
+            helper.add(mesh, { animation: model.animation, physics: false });
+
+            loader.loadAnimation(["DeepBlueTown_he_Oideyo_camera.vmd"], camera, (cameraAnimation) => {
+              helper.add(camera, { animation: cameraAnimation });
+
+              new THREE.AudioLoader().load("DeepBlueTown.wav", (buffer) => {
+                const audio = new THREE.Audio(listener).setBuffer(buffer);
+                helper.add(audio, {});
+
+                scene.add(stage);
+                scene.add(mesh);
+                
+                ready = true;
+              }, onProgress, null);
+            }, onProgress, null);
+          }, onProgress, null);
+        }, onProgress, null);
+
+        window.addEventListener("resize", () => {
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+
+          renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+      };
+
+      const animate = () => {
+        requestAnimationFrame(animate);
+        if (ready) {
+          helper.update(clock.getDelta());
+        }
+        stats.update();
+        renderer.render(scene, camera);
+      };
+      
+      document.getElementById("start-button").addEventListener("click", () => {
+        Ammo().then(() => {
+          init();
+          animate();
+        });
+      });
+    </script>
+  </body>
+</html>
