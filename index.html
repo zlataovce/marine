@@ -81,7 +81,7 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         container.appendChild(renderer.domElement);
         
-        helper = new MMDAnimationHelper({ pmxAnimation: true });
+        helper = new MMDAnimationHelper();
         helper.enable("ik", false);
         
         const onProgress = (xhr) => {
